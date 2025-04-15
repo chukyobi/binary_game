@@ -1,0 +1,20 @@
+{
+  "name": "Joyce",
+  "description": "A skilled binary warrior with agile movements",
+  "modelUrl": "/3d/models/joyce/model.glb",
+  "animations": {
+    "idle": "/3d/models/joyce/animations/idle.glb",
+    "run": "/3d/models/joyce/animations/run.glb",
+    "run-slide": "/3d/models/joyce/animations/run-slide.glb"
+  },
+  "unlockRequirements": {
+    "level": 1,
+    "gems": 0
+  },
+  "stats": {
+    "speed": 1.2,
+    "jumpHeight": 1.1,
+    "scale": [1, 1, 1]
+  },
+  "defaultAnimation": "idle"
+} 

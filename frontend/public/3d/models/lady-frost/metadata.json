@@ -1,0 +1,20 @@
+{
+  "name": "Lady Frost",
+  "description": "A mystical binary mage with ice powers",
+  "modelUrl": "/3d/models/lady-frost/model.glb",
+  "animations": {
+    "idle": "/3d/models/lady-frost/animations/idle.glb",
+    "run": "/3d/models/lady-frost/animations/run.glb",
+    "cast": "/3d/models/lady-frost/animations/cast.glb"
+  },
+  "unlockRequirements": {
+    "level": 2,
+    "gems": 100
+  },
+  "stats": {
+    "speed": 0.9,
+    "jumpHeight": 1.0,
+    "scale": [1, 1, 1]
+  },
+  "defaultAnimation": "idle"
+} 

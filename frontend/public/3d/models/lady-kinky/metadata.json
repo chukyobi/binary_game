@@ -1,0 +1,20 @@
+{
+  "name": "Lady Kinky",
+  "description": "A mysterious binary rogue with shadow abilities",
+  "modelUrl": "/3d/models/lady-kinky/model.glb",
+  "animations": {
+    "idle": "/3d/models/lady-kinky/animations/idle.glb",
+    "run": "/3d/models/lady-kinky/animations/run.glb",
+    "stealth": "/3d/models/lady-kinky/animations/stealth.glb"
+  },
+  "unlockRequirements": {
+    "level": 3,
+    "gems": 200
+  },
+  "stats": {
+    "speed": 1.3,
+    "jumpHeight": 1.2,
+    "scale": [1, 1, 1]
+  },
+  "defaultAnimation": "idle"
+} 

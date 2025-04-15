@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  email        String?
+  gems         Int            @default(0)
+  highScore    Int            @default(0)
+  currentLevel Int            @default(1)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  gameProgress GameProgress[]
+  tipUsage     TipUsage[]
+  achievements Achievement[]  @relation("AchievementToUser")
+}
+
+model GameProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  levelId   String
+  level     Level    @relation(fields: [levelId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, levelId])
+  @@index([score])
+  @@index([levelId], map: "GameProgress_levelId_fkey")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  icon        String
+  points      Int
+  createdAt   DateTime @default(now())
+  users       User[]   @relation("AchievementToUser")
+}
+
+model Level {
+  id            String         @id @default(uuid())
+  number        Int            @unique
+  name          String
+  description   String
+  difficulty    String
+  requiredScore Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  gameProgress  GameProgress[]
+  questions     Question[]
+}
+
+model Question {
+  id         String     @id @default(uuid())
+  question   String
+  answer     String
+  options    String
+  type       String
+  createdAt  DateTime   @default(now())
+  difficulty Int
+  levelId    String
+  updatedAt  DateTime   @updatedAt
+  level      Level      @relation(fields: [levelId], references: [id])
+  tipUsages  TipUsage[]
+
+  @@index([levelId, type])
+  @@index([difficulty])
+}
+
+model Character {
+  id            String   @id @default(cuid())
+  name          String
+  modelUrl      String
+  textureUrl    String?
+  isUnlocked    Boolean  @default(false)
+  unlockCost    Int      @default(0)
+  createdAt     DateTime @default(now())
+  animationUrls Json?
+}
+
+model Environment {
+  id          String   @id @default(cuid())
+  name        String
+  modelUrl    String
+  textureUrl  String?
+  isUnlocked  Boolean  @default(false)
+  unlockCost  Int      @default(0)
+  createdAt   DateTime @default(now())
+  description String
+}
+
+model TipUsage {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  count      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  question   Question @relation(fields: [questionId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, questionId])
+  @@index([questionId], map: "TipUsage_questionId_fkey")
+}
