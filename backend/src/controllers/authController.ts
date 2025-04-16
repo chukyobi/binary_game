@@ -160,4 +160,37 @@ export const logout = async (_req: Request, res: Response) => {
   });
   
   return res.json({ success: true });
+};
+
+export const getMe = async (req: Request, res: Response) => {
+  try {
+    console.log('Auth Controller: getMe called');
+    if (!req.user) {
+      console.log('Auth Controller: No user in request, returning 401');
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    console.log('Auth Controller: Fetching user data for userId:', req.user.userId);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: {
+        id: true,
+        username: true,
+        gems: true,
+        highScore: true,
+        currentLevel: true
+      }
+    });
+
+    if (!user) {
+      console.log('Auth Controller: User not found in database');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('Auth Controller: Returning user data:', user);
+    return res.json({ user });
+  } catch (error) {
+    console.error('Auth Controller: Error in getMe:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }; 

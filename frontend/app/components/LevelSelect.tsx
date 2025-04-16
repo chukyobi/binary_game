@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '../stores/gameStore';
 import { useAuthStore } from '../stores/authStore';
-import axios from 'axios';
+import { gameApi } from '../lib/api';
 
 interface Level {
   level: number;
@@ -24,13 +24,13 @@ const LevelSelect: React.FC = () => {
   useEffect(() => {
     const fetchLevels = async () => {
       try {
-        const response = await axios.get('/api/game/levels');
-        const levelsData = response.data.map((level: number) => ({
-          level,
-          name: `Level ${level}`,
-          description: `Convert ${level * 2}-bit binary numbers`,
-          difficulty: level <= 3 ? 'Easy' : level <= 6 ? 'Medium' : 'Hard',
-          unlocked: (user?.currentLevel ?? 0) >= level
+        const levels = await gameApi.getLevels();
+        const levelsData = levels.map((level: { number: number; name: string; description: string; difficulty: string }) => ({
+          level: level.number,
+          name: level.name,
+          description: level.description,
+          difficulty: level.difficulty.charAt(0).toUpperCase() + level.difficulty.slice(1),
+          unlocked: (user?.currentLevel ?? 0) >= level.number
         }));
         setLevels(levelsData);
       } catch (error) {
@@ -50,9 +50,13 @@ const LevelSelect: React.FC = () => {
   };
 
   const handleStartGame = async () => {
-    if (selectedLevel) {
+    if (!selectedLevel) return;
+    
+    try {
       await fetchQuestion(selectedLevel);
       router.push('/game');
+    } catch (error) {
+      console.error('Failed to start game:', error);
     }
   };
 
@@ -90,11 +94,11 @@ const LevelSelect: React.FC = () => {
   };
 
   const gameRules = [
-    'Convert binary numbers to decimal as fast as you can',
-    'Each correct answer gives you 10 gems',
-    'Use gems to unlock hints when stuck',
-    'Complete levels to unlock new characters',
-    'Try to beat your high score!',
+    { id: 'rule1', text: 'Convert binary numbers to decimal as fast as you can' },
+    { id: 'rule2', text: 'Each correct answer gives you 10 gems' },
+    { id: 'rule3', text: 'Use gems to unlock hints when stuck' },
+    { id: 'rule4', text: 'Complete levels to unlock new characters' },
+    { id: 'rule5', text: 'Try to beat your high score!' },
   ];
 
   if (isLoading) {
@@ -192,10 +196,10 @@ const LevelSelect: React.FC = () => {
               <div className="mt-8">
                 <h3 className="text-xl font-bold text-white mb-4">Game Rules</h3>
                 <ul className="space-y-2">
-                  {gameRules.map((rule, index) => (
-                    <li key={index} className="flex items-start">
+                  {gameRules.map((rule) => (
+                    <li key={rule.id} className="flex items-start">
                       <span className="text-indigo-400 mr-2">•</span>
-                      <span className="text-gray-300">{rule}</span>
+                      <span className="text-gray-300">{rule.text}</span>
                     </li>
                   ))}
                 </ul>

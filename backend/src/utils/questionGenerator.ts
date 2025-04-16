@@ -79,7 +79,11 @@ export const generateQuestion = (level: number, questionCount: number = 0): Ques
     
     // Generate options with varying difficulty
     const options = [decimal];
-    while (options.length < 4) {
+    let attempts = 0;
+    const maxAttempts = 20; // Prevent infinite loops
+    
+    while (options.length < 4 && attempts < maxAttempts) {
+      attempts++;
       let randomDecimal: string;
       if (questionCount < 5) {
         // Easy: options close to correct answer
@@ -97,6 +101,12 @@ export const generateQuestion = (level: number, questionCount: number = 0): Ques
       if (!options.includes(randomDecimal) && parseInt(randomDecimal) >= 0) {
         options.push(randomDecimal);
       }
+    }
+    
+    // If we couldn't generate enough options, fill with sequential numbers
+    while (options.length < 4) {
+      const nextNumber = parseInt(options[options.length - 1]) + 1;
+      options.push(nextNumber.toString());
     }
     
     return {

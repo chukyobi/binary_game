@@ -6,11 +6,17 @@ const Auth: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
-  const { login, register, isLoading } = useAuthStore();
+  const { login, register } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    setError('');
+    
     try {
       if (isLogin) {
         await login(username);
@@ -20,6 +26,8 @@ const Auth: React.FC = () => {
       router.push('/level-select');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -48,17 +56,18 @@ const Auth: React.FC = () => {
               placeholder="Enter your username"
               minLength={3}
               maxLength={20}
-              pattern="[a-zA-Z0-9_-]+"
+              pattern="[a-zA-Z0-9_\-]+"
               title="Username can only contain letters, numbers, underscores, and hyphens"
+              disabled={isSubmitting}
             />
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="w-full bg-indigo-600 text-white p-2 rounded hover:bg-indigo-700 disabled:opacity-50"
           >
-            {isLoading ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
+            {isSubmitting ? 'Loading...' : isLogin ? 'Login' : 'Sign Up'}
           </button>
         </form>
 
@@ -67,6 +76,7 @@ const Auth: React.FC = () => {
           <button
             onClick={() => setIsLogin(!isLogin)}
             className="text-indigo-400 hover:text-indigo-300"
+            disabled={isSubmitting}
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </button>

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import { authApi } from '../lib/api';
 
 interface User {
   id: string;
@@ -22,8 +22,6 @@ interface AuthStore {
   clearAuth: () => void;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
-
 export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   isLoading: false,
@@ -36,10 +34,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   clearAuth: () => set({ user: null, error: null }),
 
   login: async (username: string) => {
+    if (get().isLoading) return;
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { username }, { withCredentials: true });
-      set({ user: response.data.user, isLoading: false });
+      const response = await authApi.login(username);
+      set({ user: response.user, isLoading: false });
     } catch (error) {
       set({ error: 'Login failed', isLoading: false });
       throw error;
@@ -47,10 +46,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   register: async (username: string) => {
+    if (get().isLoading) return;
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, { username }, { withCredentials: true });
-      set({ user: response.data.user, isLoading: false });
+      const response = await authApi.register(username);
+      set({ user: response.user, isLoading: false });
     } catch (error) {
       set({ error: 'Registration failed', isLoading: false });
       throw error;
@@ -58,9 +58,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   logout: async () => {
+    if (get().isLoading) return;
     set({ isLoading: true, error: null });
     try {
-      await axios.post(`${API_URL}/auth/logout`, {}, { withCredentials: true });
+      await authApi.logout();
       set({ user: null, isLoading: false });
     } catch (error) {
       set({ error: 'Logout failed', isLoading: false });
@@ -69,12 +70,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   checkAuth: async () => {
+    if (get().isLoading) return;
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get(`${API_URL}/auth/me`, { withCredentials: true });
-      set({ user: response.data.user, isLoading: false });
+      console.log('Checking authentication status...');
+      const response = await authApi.checkAuth();
+      console.log('Auth check successful:', response.user ? 'User authenticated' : 'No user found');
+      set({ user: response.user, isLoading: false });
     } catch (error) {
-      set({ user: null, isLoading: false });
+      console.error('Auth check failed:', error);
+      set({ user: null, error: 'Authentication check failed', isLoading: false });
     }
   },
 })); 

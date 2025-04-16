@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi } from '../utils/api';
+import { authApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { ERROR_MESSAGES } from '../utils/constants';
 
@@ -27,21 +27,21 @@ export const useAuth = () => {
     checkAuth();
   }, [setUser, clearAuth]);
 
-  const login = async (email: string) => {
+  const login = async (username: string) => {
     try {
-      const { user } = await authApi.login(email);
+      const { user } = await authApi.login(username);
       setUser(user);
-      router.push('/menu');
+      router.push('/level-select');
     } catch (error) {
       throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
     }
   };
 
-  const register = async (email: string, username: string) => {
+  const register = async (username: string) => {
     try {
-      const { user } = await authApi.register(email, username);
+      const { user } = await authApi.register(username);
       setUser(user);
-      router.push('/menu');
+      router.push('/level-select');
     } catch (error) {
       throw new Error(ERROR_MESSAGES.NETWORK_ERROR);
     }

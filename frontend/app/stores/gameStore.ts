@@ -33,11 +33,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isGameOver: false,
 
   fetchQuestion: async (level: number) => {
+    console.log('gameStore: fetchQuestion called with level:', level);
     set({ isLoading: true, error: null });
     try {
+      console.log('gameStore: calling gameApi.getQuestion');
       const question = await gameApi.getQuestion(level);
+      console.log('gameStore: question received:', question);
       set({ currentQuestion: question, currentLevel: level, isLoading: false });
     } catch (error) {
+      console.error('gameStore: error fetching question:', error);
       set({ error: 'Failed to fetch question', isLoading: false });
     }
   },

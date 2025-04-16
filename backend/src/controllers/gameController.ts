@@ -5,13 +5,17 @@ import { getTips } from '../utils/tipsGenerator';
 
 export const getQuestion = async (req: Request, res: Response) => {
   try {
-    const { level } = req.query;
-    const levelNum = parseInt(level as string);
+    console.log('getQuestion called with params:', req.params);
+    const { level } = req.params;
+    const levelNum = parseInt(level);
     
+    console.log('User object:', req.user);
     if (!req.user) {
+      console.log('No user found in request');
       return res.status(401).json({ message: 'Unauthorized' });
     }
     
+    console.log('Getting game progress for user:', req.user.userId, 'level:', levelNum);
     // Get user's question count for this level
     const gameProgress = await prisma.gameProgress.findFirst({
       where: {
@@ -25,10 +29,13 @@ export const getQuestion = async (req: Request, res: Response) => {
       }
     });
     
-    const questionCount = gameProgress ? gameProgress.score / 10 : 0; // Assuming 10 points per question
+    console.log('Game progress found:', gameProgress);
+    const questionCount = gameProgress ? gameProgress.score / 10 : 0;
     
+    console.log('Generating question for level:', levelNum, 'question count:', questionCount);
     // Generate a new question
     const question = generateQuestion(levelNum, questionCount);
+    console.log('Generated question:', question);
 
     // Find the level by number
     const levelRecord = await prisma.level.findFirst({
@@ -59,6 +66,7 @@ export const getQuestion = async (req: Request, res: Response) => {
       difficulty: question.difficulty
     });
   } catch (error) {
+    console.error('Error generating question:', error);
     return res.status(500).json({ message: 'Error generating question' });
   }
 };
@@ -152,6 +160,21 @@ export const updateScore = async (req: Request, res: Response) => {
 
 export const getLevels = async (_req: Request, res: Response) => {
   try {
+    // First, check if we have any levels
+    const levelCount = await prisma.level.count();
+    
+    // If no levels exist, create default levels
+    if (levelCount === 0) {
+      await prisma.level.createMany({
+        data: [
+          { number: 1, name: 'Level 1', description: 'Introduction to Binary', difficulty: 'easy', requiredScore: 0 },
+          { number: 2, name: 'Level 2', description: 'Basic Binary Operations', difficulty: 'easy', requiredScore: 50 },
+          { number: 3, name: 'Level 3', description: 'Advanced Binary', difficulty: 'medium', requiredScore: 100 },
+          { number: 4, name: 'Level 4', description: 'Binary Mastery', difficulty: 'hard', requiredScore: 200 },
+        ]
+      });
+    }
+    
     const levels = await prisma.level.findMany({
       orderBy: {
         number: 'asc'

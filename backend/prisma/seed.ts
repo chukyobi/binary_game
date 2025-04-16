@@ -83,8 +83,8 @@ async function main() {
     data: {
       name: 'Binary Terrain',
       description: 'A mystical landscape of binary code',
-      modelUrl: '/3d/environments/terrain/model.glb',
-      textureUrl: null,
+      modelUrl: '/3d/environments/terrain/scene.gltf',
+      textureUrl: '/3d/environments/terrain/textures/Material.001_baseColor.jpeg',
       isUnlocked: true,
       unlockCost: 0
     }
