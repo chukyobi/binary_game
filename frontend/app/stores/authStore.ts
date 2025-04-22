@@ -13,7 +13,7 @@ interface AuthStore {
   user: User | null;
   isLoading: boolean;
   error: string | null;
-  isAuthenticated: boolean;
+  isAuthenticated: () => boolean; 
   login: (username: string) => Promise<void>;
   register: (username: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -26,9 +26,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   user: null,
   isLoading: false,
   error: null,
-  get isAuthenticated() {
-    return get().user !== null;
-  },
+
+  isAuthenticated: () => get().user !== null,
 
   setUser: (user: User | null) => set({ user }),
   clearAuth: () => set({ user: null, error: null }),
@@ -70,16 +69,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   checkAuth: async () => {
-    if (get().isLoading) return;
+    // ✅ prevent redundant API call
+    const { user, isLoading } = get();
+    if (user || isLoading) return;
+
+    console.log('[checkAuth] Authenticating...');
     set({ isLoading: true, error: null });
     try {
-      console.log('Checking authentication status...');
       const response = await authApi.checkAuth();
-      console.log('Auth check successful:', response.user ? 'User authenticated' : 'No user found');
-      set({ user: response.user, isLoading: false });
+      if (response.user) {
+        console.log('[checkAuth] User authenticated:', response.user.username);
+        set({ user: response.user });
+      } else {
+        console.log('[checkAuth] No user found');
+        set({ user: null });
+      }
     } catch (error) {
-      console.error('Auth check failed:', error);
-      set({ user: null, error: 'Authentication check failed', isLoading: false });
+      console.error('[checkAuth] Failed:', error);
+      set({ user: null, error: 'Authentication check failed' });
+    } finally {
+      set({ isLoading: false });
     }
   },
-})); 
+}));

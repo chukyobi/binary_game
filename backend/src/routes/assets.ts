@@ -1,20 +1,9 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth';
-import {
-  getCharacters,
-  getEnvironments,
-  getCharacterById
-} from '../controllers/assetController';
+import { getGameAssets } from '../controllers/assetController';
 
 const router = express.Router();
 
-// Get all characters
-router.get('/characters', authenticateToken, getCharacters);
+router.get('/assets', authenticateToken, getGameAssets);
 
-// Get all environments
-router.get('/environments', authenticateToken, getEnvironments);
-
-// Get character by ID
-router.get('/characters/:id', authenticateToken, getCharacterById);
-
-export default router; 
+export default router;

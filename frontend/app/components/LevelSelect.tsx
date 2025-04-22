@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '../stores/gameStore';
@@ -16,13 +18,17 @@ const LevelSelect: React.FC = () => {
   const [levels, setLevels] = useState<Level[]>([]);
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingLevels, setIsLoadingLevels] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
+
   const router = useRouter();
   const { user } = useAuthStore();
   const { fetchQuestion } = useGameStore();
 
   useEffect(() => {
     const fetchLevels = async () => {
+      if (!user || hasFetched) return;
+
       try {
         const levels = await gameApi.getLevels();
         const levelsData = levels.map((level: { number: number; name: string; description: string; difficulty: string }) => ({
@@ -30,28 +36,30 @@ const LevelSelect: React.FC = () => {
           name: level.name,
           description: level.description,
           difficulty: level.difficulty.charAt(0).toUpperCase() + level.difficulty.slice(1),
-          unlocked: (user?.currentLevel ?? 0) >= level.number
+          unlocked: (user?.currentLevel ?? 0) >= level.number,
         }));
+
         setLevels(levelsData);
+        setHasFetched(true);
       } catch (error) {
         console.error('Failed to fetch levels:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingLevels(false);
       }
     };
 
     fetchLevels();
-  }, [user?.currentLevel]);
+  }, [user, hasFetched]);
 
-  const handleLevelSelect = async (level: number) => {
-    if (!levels.find(l => l.level === level)?.unlocked) return;
+  const handleLevelSelect = (level: number) => {
+    const levelObj = levels.find(l => l.level === level);
+    if (!levelObj?.unlocked) return;
     setSelectedLevel(level);
     setShowTutorial(true);
   };
 
   const handleStartGame = async () => {
     if (!selectedLevel) return;
-    
     try {
       await fetchQuestion(selectedLevel);
       router.push('/game');
@@ -60,35 +68,36 @@ const LevelSelect: React.FC = () => {
     }
   };
 
+  if (isLoadingLevels) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-2xl">Loading levels...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-xl">You're not logged in.</div>
+      </div>
+    );
+  }
+
   const tutorialContent = {
     1: {
       title: '2-Bit Binary Conversion',
-      steps: [
-        'Each position in binary represents a power of 2',
-        'Rightmost position is 2^0 (1)',
-        'Next position is 2^1 (2)',
-        'Add the values where there is a 1',
-      ],
+      steps: ['Each position in binary represents a power of 2', 'Rightmost position is 2^0 (1)', 'Next position is 2^1 (2)', 'Add the values where there is a 1'],
       example: 'Example: 10 in binary = 1×2 + 0×1 = 2 in decimal',
     },
     2: {
       title: '4-Bit Binary Conversion',
-      steps: [
-        'Same as 2-bit but with more positions',
-        'Positions from right: 1, 2, 4, 8',
-        'Add values where there is a 1',
-        'Maximum value is 15 (1111)',
-      ],
+      steps: ['Same as 2-bit but with more positions', 'Positions from right: 1, 2, 4, 8', 'Add values where there is a 1', 'Maximum value is 15 (1111)'],
       example: 'Example: 1010 = 1×8 + 0×4 + 1×2 + 0×1 = 10',
     },
     3: {
       title: '8-Bit Binary Conversion',
-      steps: [
-        'Positions from right: 1, 2, 4, 8, 16, 32, 64, 128',
-        'Add values where there is a 1',
-        'Maximum value is 255 (11111111)',
-        'Practice makes perfect!',
-      ],
+      steps: ['Positions from right: 1, 2, 4, 8, 16, 32, 64, 128', 'Add values where there is a 1', 'Maximum value is 255 (11111111)', 'Practice makes perfect!'],
       example: 'Example: 11001010 = 128 + 64 + 8 + 2 = 202',
     },
   };
@@ -101,14 +110,6 @@ const LevelSelect: React.FC = () => {
     { id: 'rule5', text: 'Try to beat your high score!' },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="text-white text-2xl">Loading levels...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -116,9 +117,7 @@ const LevelSelect: React.FC = () => {
           <>
             <div className="text-center mb-12">
               <h1 className="text-4xl font-bold text-white">Select Level</h1>
-              <p className="mt-2 text-xl text-gray-300">
-                Choose your challenge level
-              </p>
+              <p className="mt-2 text-xl text-gray-300">Choose your challenge level</p>
             </div>
 
             <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -134,12 +133,7 @@ const LevelSelect: React.FC = () => {
                 >
                   {!level.unlocked && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="h-8 w-8 text-gray-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
+                      <svg className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -174,7 +168,7 @@ const LevelSelect: React.FC = () => {
               <h2 className="text-2xl font-bold text-white mb-6">
                 {tutorialContent[selectedLevel as keyof typeof tutorialContent].title}
               </h2>
-              
+
               <div className="space-y-4">
                 {tutorialContent[selectedLevel as keyof typeof tutorialContent].steps.map((step, index) => (
                   <div key={index} className="flex items-start">
@@ -206,10 +200,7 @@ const LevelSelect: React.FC = () => {
               </div>
 
               <div className="mt-8 flex justify-end">
-                <button
-                  onClick={() => setShowTutorial(false)}
-                  className="mr-4 px-4 py-2 text-gray-300 hover:text-white"
-                >
+                <button onClick={() => setShowTutorial(false)} className="mr-4 px-4 py-2 text-gray-300 hover:text-white">
                   Back
                 </button>
                 <button
@@ -227,4 +218,4 @@ const LevelSelect: React.FC = () => {
   );
 };
 
-export default LevelSelect; 
+export default LevelSelect;

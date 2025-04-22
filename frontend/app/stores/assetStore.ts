@@ -1,91 +1,70 @@
 import { create } from 'zustand';
-import api from '../lib/api';
+import { gameApi } from '../lib/api';
 
 interface Character {
   id: string;
   name: string;
-  description: string;
-  textureUrl: string;
-  isUnlocked: boolean;
-  unlockCost: number;
   modelUrl: string;
-  animationUrls: string[];
+}
+
+interface Obstacle {
+  id: string;
+  name: string;
+  modelUrl: string;
+  meshName: string;
 }
 
 interface Environment {
   id: string;
   name: string;
   modelUrl: string;
-  thumbnailUrl: string;
+  description: string;
+  obstacles: Obstacle[];
 }
 
 interface AssetStore {
-  characters: Character[];
-  environments: Environment[];
-  selectedCharacter: Character | null;
-  selectedEnvironment: Environment | null;
+  character: Character | null;
+  environment: Environment | null;
   isLoading: boolean;
   error: string | null;
   fetchAssets: () => Promise<void>;
-  selectCharacter: (characterId: string) => void;
-  selectEnvironment: (environmentId: string) => void;
-  unlockCharacter: (characterId: string) => Promise<void>;
 }
 
-export const useAssetStore = create<AssetStore>((set, get) => ({
-  characters: [],
-  environments: [],
-  selectedCharacter: null,
-  selectedEnvironment: null,
+export const useAssetStore = create<AssetStore>((set) => ({
+  character: null,
+  environment: null,
   isLoading: false,
   error: null,
 
   fetchAssets: async () => {
     set({ isLoading: true, error: null });
+
+    console.log('[AssetStore] Fetching assets...');
+
     try {
-      const response = await api.get('/game/assets');
-      set({ 
-        characters: response.data.characters.map((char: any) => ({
-          ...char,
-          description: char.name // Use name as description since it's not in the backend model
-        })), 
-        environments: response.data.environments,
-        isLoading: false 
+      const { character = null, environment = null } = await gameApi.getAssets();
+
+      console.log('[AssetStore] Character:', character);
+      console.log('[AssetStore] Environment:', environment);
+
+      set({
+        character,
+        environment,
+        isLoading: false,
+        error: null,
       });
-    } catch (error) {
-      set({ error: 'Failed to fetch characters', isLoading: false });
-    }
-  },
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.message || error?.message || 'Failed to fetch game assets';
 
-  selectCharacter: (characterId: string) => {
-    const character = get().characters.find(c => c.id === characterId);
-    if (character) {
-      set({ selectedCharacter: character });
-    }
-  },
+        console.error('[AssetStore] Error fetching assets:', message, error);
 
-  selectEnvironment: (environmentId: string) => {
-    const environment = get().environments.find(e => e.id === environmentId);
-    if (environment) {
-      set({ selectedEnvironment: environment });
-    }
-  },
-
-  unlockCharacter: async (characterId: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      await api.post(`/game/assets/characters/${characterId}/unlock`);
-      const response = await api.get('/game/assets');
-      set({ 
-        characters: response.data.characters.map((char: any) => ({
-          ...char,
-          description: char.name
-        })), 
-        environments: response.data.environments,
-        isLoading: false 
+      set({
+        character: null,
+        environment: null,
+        isLoading: false,
+        error: message,
       });
-    } catch (error) {
-      set({ error: 'Failed to unlock character', isLoading: false });
     }
   },
-})); 
+}));

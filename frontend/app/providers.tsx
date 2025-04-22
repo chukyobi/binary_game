@@ -1,26 +1,28 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useAssetStore } from './stores/assetStore';
+import { usePathname } from 'next/navigation';
+import { useAuthStore } from './stores/authStore';
 import LoadingSpinner from './components/LoadingSpinner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const { fetchAssets } = useAssetStore();
+  const { user, checkAuth } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
+  const pathname = usePathname();
+
+  // Define public routes that don’t need auth
+  const publicRoutes = ['/', '/auth', '/login', '/signup'];
 
   useEffect(() => {
     const initialize = async () => {
-      try {
-        await fetchAssets();
-      } catch (error) {
-        console.error('Failed to fetch assets:', error);
-      } finally {
-        setIsInitialized(true);
+      if (!publicRoutes.includes(pathname)) {
+        await checkAuth(); 
       }
+      setIsInitialized(true);
     };
 
     initialize();
-  }, []); // Only run once on mount
+  }, [pathname]);
 
   if (!isInitialized) {
     return (
@@ -31,4 +33,4 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }
 
   return <>{children}</>;
-} 
+}

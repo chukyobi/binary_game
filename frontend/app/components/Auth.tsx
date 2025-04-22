@@ -21,7 +21,7 @@ const Auth: React.FC = () => {
       if (isLogin) {
         await login(username);
       } else {
-        await register(username);
+        await register(username); 
       }
       router.push('/level-select');
     } catch (err) {

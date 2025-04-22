@@ -3,6 +3,19 @@ import { gameApi } from '../lib/api';
 import { Question, GameState } from '../types';
 import { GEM_REWARDS, SCORE_MULTIPLIERS } from '../utils/constants';
 
+interface GameEnvironment {
+  id: string;
+  name: string;
+  modelUrl: string;
+  description: string;
+  obstacles: {
+    id: string;
+    name: string;
+    modelUrl: string;
+    meshName: string;
+  }[];
+}
+
 interface GameStore extends GameState {
   currentQuestion: Question | null;
   currentLevel: number;
@@ -11,6 +24,7 @@ interface GameStore extends GameState {
   isLoading: boolean;
   error: string | null;
   isGameOver: boolean;
+  selectedEnvironment: GameEnvironment | null;
   fetchQuestion: (level: number) => Promise<void>;
   answerQuestion: (answer: string) => Promise<boolean>;
   updateScore: (points: number) => void;
@@ -31,18 +45,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isLoading: false,
   error: null,
   isGameOver: false,
+  selectedEnvironment: null,
 
   fetchQuestion: async (level: number) => {
-    console.log('gameStore: fetchQuestion called with level:', level);
     set({ isLoading: true, error: null });
     try {
-      console.log('gameStore: calling gameApi.getQuestion');
       const question = await gameApi.getQuestion(level);
-      console.log('gameStore: question received:', question);
       set({ currentQuestion: question, currentLevel: level, isLoading: false });
-    } catch (error) {
-      console.error('gameStore: error fetching question:', error);
-      set({ error: 'Failed to fetch question', isLoading: false });
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Failed to fetch question';
+      set({ error: message, isLoading: false });
     }
   },
 
@@ -51,18 +63,23 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!currentQuestion) return false;
 
     try {
-      const isCorrect = await gameApi.answerQuestion(currentQuestion.id, answer);
+      const isCorrect = await gameApi.submitAnswer(currentQuestion.id, answer);
       if (isCorrect) {
-        const { score } = get();
         const difficultyLevel = getDifficultyLevel(currentQuestion.difficulty);
         const multiplier = SCORE_MULTIPLIERS[difficultyLevel];
-        const newScore = score + 10 * multiplier;
-        set((state) => ({ score: newScore, highScore: Math.max(newScore, state.highScore) }));
+        const newScore = get().score + 10 * multiplier;
+
+        set((state) => ({
+          score: newScore,
+          highScore: Math.max(newScore, state.highScore),
+        }));
       }
+
       set({ currentQuestion: null });
       return isCorrect;
-    } catch (error) {
-      set({ error: 'Failed to submit answer' });
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || 'Failed to submit answer';
+      set({ error: message });
       return false;
     }
   },
@@ -70,9 +87,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   updateScore: (points: number) => {
     const { score, currentLevel } = get();
     const newScore = score + points;
-    set((state) => ({ score: newScore, highScore: Math.max(newScore, state.highScore) }));
-    gameApi.updateScore(newScore, currentLevel).catch(error => {
-      set({ error: 'Failed to update score' });
+
+    set((state) => ({
+      score: newScore,
+      highScore: Math.max(newScore, state.highScore),
+    }));
+
+    gameApi.updateScore(newScore, currentLevel).catch((error: any) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to update score';
+      set({ error: message });
     });
   },
 
@@ -84,7 +107,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       highScore: 0,
       isLoading: false,
       error: null,
-      isGameOver: false
+      isGameOver: false,
+      selectedEnvironment: null,
     });
   },
-})); 
+}));

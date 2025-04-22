@@ -65,4 +65,17 @@ export interface Achievement {
   isUnlocked: boolean;
   progress: number;
   maxProgress: number;
+}
+
+export interface Environment {
+  id: string;
+  name: string;
+  modelUrl: string;
+  description: string;
+  obstacles: {
+    id: string;
+    name: string;
+    modelUrl: string;
+    meshName: string;
+  }[];
 } 

@@ -9,10 +9,10 @@ const SplashScreen: React.FC = () => {
   const router = useRouter();
 
   useEffect(() => {
-    // Show logo after 2 seconds
+    // Show logo after 4 seconds
     const logoTimer = setTimeout(() => {
       setShowLogo(true);
-    }, 2000);
+    }, 4000);
 
     // Start fade out after 4 seconds
     const fadeOutTimer = setTimeout(() => {

@@ -11,7 +11,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Show splash screen for 3 seconds
+    // Show splash screen for 7 seconds
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
       setShowLoading(true);

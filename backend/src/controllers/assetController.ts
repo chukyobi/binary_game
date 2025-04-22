@@ -1,37 +1,26 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
-export const getCharacters = async (_req: Request, res: Response) => {
-  try {
-    const characters = await prisma.character.findMany();
-    return res.json(characters);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch characters' });
-  }
-};
 
-export const getEnvironments = async (_req: Request, res: Response) => {
+export const getGameAssets = async (_req: Request, res: Response) => {
   try {
-    const environments = await prisma.environment.findMany();
-    return res.json(environments);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch environments' });
-  }
-};
-
-export const getCharacterById = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const character = await prisma.character.findUnique({
-      where: { id }
+    const character = await prisma.character.findFirst();
+    const environment = await prisma.environment.findFirst({
+      include: { obstacles: true },
     });
 
-    if (!character) {
-      return res.status(404).json({ error: 'Character not found' });
+    if (!character || !environment) {
+      console.warn('[getGameAssets] Missing character or environment');
+      return res.status(404).json({ error: 'Assets missing' });
     }
 
-    return res.json(character);
+    // Prevent caching
+    res.setHeader('Cache-Control', 'no-store');
+
+    console.log('[getGameAssets] Returning assets');
+    return res.json({ character, environment });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch character' });
+    console.error('[getGameAssets] Error fetching assets:', error);
+    return res.status(500).json({ error: 'Failed to fetch game assets' });
   }
-}; 
+};

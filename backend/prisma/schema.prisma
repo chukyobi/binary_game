@@ -77,25 +77,31 @@ model Question {
 }
 
 model Character {
-  id            String   @id @default(cuid())
-  name          String
-  modelUrl      String
-  textureUrl    String?
-  isUnlocked    Boolean  @default(false)
-  unlockCost    Int      @default(0)
-  createdAt     DateTime @default(now())
-  animationUrls Json?
+  id        String   @id @default(cuid())
+  name      String
+  modelUrl  String
+  createdAt DateTime @default(now())
 }
 
 model Environment {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
-  modelUrl    String
-  textureUrl  String?
-  isUnlocked  Boolean  @default(false)
-  unlockCost  Int      @default(0)
-  createdAt   DateTime @default(now())
   description String
+  modelUrl    String
+  obstacles   Obstacle[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Obstacle {
+  id            String     @id @default(cuid())
+  name          String
+  modelUrl      String
+  meshName      String
+  environmentId String
+  environment   Environment @relation(fields: [environmentId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 model TipUsage {
