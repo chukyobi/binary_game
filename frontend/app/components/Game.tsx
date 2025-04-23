@@ -21,6 +21,7 @@ const ENVIRONMENT_MODEL = '/3d/environments/city/scene.glb';
 
 // Shared direction ref so both components can access it
 const direction = { current: { forward: false, right: false, left: false } };
+const characterRotationY = { current: 0 }; 
 
 const Character = () => {
   const { scene, animations } = useGLTF(CHARACTER_MODEL);
@@ -100,122 +101,220 @@ const Character = () => {
       console.error("No animation actions available");
       return;
     }
-
-    const runAnimation =
-      actions['Run'] ||
-      actions['run'] ||
-      actions['Running'] ||
-      actions['running'] ||
-      Object.entries(actions).find(([name]) => name.toLowerCase().includes('run'))?.[1];
-
-    const firstAnimation = Object.values(actions)[0];
-
+  
+    let nextAnimation: THREE.AnimationAction | undefined;
+  
     if (isRunning) {
-      if (runAnimation) {
-        console.log("Playing run animation");
-        mixer?.stopAllAction();
-        runAnimation.reset().fadeIn(0.2).play();
-        setCurrentAnimation(Object.keys(actions).find(key => actions[key] === runAnimation) || null);
-      } else if (firstAnimation) {
-        console.log("No run animation found, playing first available animation");
-        mixer?.stopAllAction();
-        firstAnimation.reset().fadeIn(0.2).play();
-        setCurrentAnimation(Object.keys(actions).find(key => actions[key] === firstAnimation) || null);
-      }
+      nextAnimation = (
+        actions['Run'] || 
+        actions['run'] || 
+        actions['Running'] || 
+        actions['running'] ||
+        Object.values(actions).find(action => 
+          action?.getClip().name.toLowerCase().includes('run')
+        )
+      ) as THREE.AnimationAction | undefined;
     } else {
-      const idleAnimation =
-        actions['Idle'] ||
-        actions['idle'] ||
-        actions['Standing'] ||
+      nextAnimation = (
+        actions['Idle'] || 
+        actions['idle'] || 
+        actions['Standing'] || 
         actions['standing'] ||
-        Object.entries(actions).find(([name]) => name.toLowerCase().includes('idle'))?.[1] ||
-        firstAnimation;
-
-      if (idleAnimation) {
-        console.log("Playing idle animation");
-        mixer?.stopAllAction();
-        idleAnimation.reset().fadeIn(0.2).play();
-        setCurrentAnimation(Object.keys(actions).find(key => actions[key] === idleAnimation) || null);
+        Object.values(actions).find(action => 
+          action?.getClip().name.toLowerCase().includes('idle')
+        )
+      ) as THREE.AnimationAction | undefined;
+    }
+  
+    // Fallback to first available animation
+    if (!nextAnimation) {
+      const availableActions = Object.values(actions).filter(Boolean);
+      if (availableActions.length > 0) {
+        nextAnimation = availableActions[0] as THREE.AnimationAction;
+        console.warn("No matching animation found, falling back to first available.");
       }
     }
-  }, [isRunning, actions, mixer]);
+  
+    if (nextAnimation) {
+      const clipName = nextAnimation.getClip().name;
+      if (!currentAnimation || currentAnimation !== clipName) {
+        mixer?.stopAllAction();
+        nextAnimation.reset().fadeIn(0.2).play();
+        setCurrentAnimation(clipName);
+        console.log(`Playing animation: ${clipName}`);
+      }
+    }
+  }, [isRunning, actions, mixer, currentAnimation]);
+  
+  
+
 
   useFrame((_, delta) => {
-    if (mixer) {
-      mixer.update(delta);
-    }
+    if (mixer) mixer.update(delta);
   
     if (ref.current) {
-      const rotateSpeed = 2; // radians per second
+      const rotateSpeed = 0.6;
+      const moveSpeed = 0.6;
   
-      if (direction.current.left) {
-        ref.current.rotation.y += rotateSpeed * delta;
-      }
-      if (direction.current.right) {
-        ref.current.rotation.y -= rotateSpeed * delta;
+      // Rotation
+      if (direction.current.left) ref.current.rotation.y += rotateSpeed * delta;
+      if (direction.current.right) ref.current.rotation.y -= rotateSpeed * delta;
+  
+      // Movement (Note: +Z is forward in your setup)
+      if (direction.current.forward) {
+        const forward = new THREE.Vector3(0, 0, 1); 
+        forward.applyQuaternion(ref.current.quaternion);
+        ref.current.position.addScaledVector(forward, moveSpeed * delta);
       }
     }
   });
-  
+
   return <primitive ref={ref} object={scene} scale={0.15} />;
 };
+
+// const GameEnvironment = () => {
+//   const { scene } = useGLTF(ENVIRONMENT_MODEL);
+//   const envRef = useRef<THREE.Group>(null);
+
+//   const [isPlayerRunning, setIsPlayerRunning] = useState(false);
+//   const playerVelocity = useRef(0);
+
+//   useEffect(() => {
+//     const box = new THREE.Box3().setFromObject(scene);
+//     const center = new THREE.Vector3();
+//     box.getCenter(center);
+
+//     scene.position.x -= center.x;
+//     scene.position.z -= center.z;
+//     scene.position.y = -0.5;
+
+//     const handleKeyDown = (e: KeyboardEvent) => {
+//       if (e.key.toLowerCase() === 'w') {
+//         setIsPlayerRunning(true);
+//         playerVelocity.current = 2;
+//       }
+//     };
+
+//     const handleKeyUp = (e: KeyboardEvent) => {
+//       if (e.key.toLowerCase() === 'w') {
+//         setIsPlayerRunning(false);
+//         playerVelocity.current = 0;
+//       }
+//     };
+
+//     window.addEventListener('keydown', handleKeyDown);
+//     window.addEventListener('keyup', handleKeyUp);
+
+//     return () => {
+//       window.removeEventListener('keydown', handleKeyDown);
+//       window.removeEventListener('keyup', handleKeyUp);
+//     };
+//   }, [scene]);
+
+//   useFrame((_, delta) => {
+//     if (!envRef.current) return;
+
+//     const speed = 2;
+//     const offset = new THREE.Vector3();
+
+//     if (direction.current.forward) {
+//       offset.z += speed * delta;
+//     }
+//     if (direction.current.right) {
+//       offset.x -= speed * delta;
+//     }
+//     if (direction.current.left) {
+//       offset.x += speed * delta;
+//     }
+
+//     envRef.current.position.add(offset);
+//   });
+
+//   return <primitive ref={envRef} object={scene} scale={0.22} />;
+// };
+
+// const Scene = () => {
+//   const charRef = useRef<THREE.Group>(null);
+
+//   useFrame(({ camera }) => {
+//     if (charRef.current) {
+//       // Get character's world position
+//       const charPos = new THREE.Vector3();
+//       charRef.current.getWorldPosition(charPos);
+
+//       // Calculate camera offset relative to character's rotation
+//       const followOffset = new THREE.Vector3(1.2, -0.1, 3);
+//       const lookAtOffset = new THREE.Vector3(1.2, 0, 2);
+
+//       // Rotate the offset vectors based on character's Y rotation
+//       followOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), charRef.current.rotation.y);
+//       lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), charRef.current.rotation.y);
+
+//       // Calculate target positions
+//       const targetPos = charPos.clone().add(followOffset);
+//       camera.position.lerp(targetPos, 0.1);
+
+//       const lookAtPos = charPos.clone().add(lookAtOffset);
+//       camera.lookAt(lookAtPos);
+//     }
+//   });
+
+//   return (
+//     <>
+//       <DreiEnvironment preset="sunset" />
+//       <ambientLight intensity={0.7} />
+//       <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
+//       <spotLight
+//         position={[0, 5, 0]}
+//         intensity={0.8}
+//         angle={0.6}
+//         penumbra={0.5}
+//         castShadow
+//         target={charRef.current || undefined}
+//       />
+//       <group ref={charRef}>
+//         <Character />
+//       </group>
+//       <GameEnvironment />
+//     </>
+//   );
+// };
 
 const GameEnvironment = () => {
   const { scene } = useGLTF(ENVIRONMENT_MODEL);
   const envRef = useRef<THREE.Group>(null);
-
-  const [isPlayerRunning, setIsPlayerRunning] = useState(false);
-  const playerVelocity = useRef(0);
+  
+  // Store initial position for reference
+  const initialPos = useRef<THREE.Vector3 | null>(null);
 
   useEffect(() => {
+    // Center the environment
     const box = new THREE.Box3().setFromObject(scene);
     const center = new THREE.Vector3();
     box.getCenter(center);
-
-    scene.position.x -= center.x;
-    scene.position.z -= center.z;
+    scene.position.sub(center);
     scene.position.y = -0.5;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'w') {
-        setIsPlayerRunning(true);
-        playerVelocity.current = 2;
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'w') {
-        setIsPlayerRunning(false);
-        playerVelocity.current = 0;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
+    
+    // Store initial position
+    initialPos.current = scene.position.clone();
   }, [scene]);
 
   useFrame((_, delta) => {
-    if (!envRef.current) return;
+    if (!envRef.current || !initialPos.current) return;
 
-    const speed = 2;
-    const offset = new THREE.Vector3();
-
+    // Subtle parallax effect when moving
     if (direction.current.forward) {
-      offset.z += speed * delta;
+      // Move environment slightly backward to create parallax
+      envRef.current.position.z += 0.5 * delta; // Adjust speed as needed
+    }
+    
+    // Optional: Add slight horizontal movement when strafing
+    if (direction.current.left) {
+      envRef.current.position.x -= 0.3 * delta;
     }
     if (direction.current.right) {
-      offset.x -= speed * delta;
+      envRef.current.position.x += 0.3 * delta;
     }
-    if (direction.current.left) {
-      offset.x += speed * delta;
-    }
-
-    envRef.current.position.add(offset);
   });
 
   return <primitive ref={envRef} object={scene} scale={0.22} />;
@@ -223,36 +322,70 @@ const GameEnvironment = () => {
 
 const Scene = () => {
   const charRef = useRef<THREE.Group>(null);
+  
+  // Your original offsets (preserved)
+  // const baseCameraOffset = useRef(new THREE.Vector3(1.2, 0, 2)); // Right, height, distance
+  // const baseLookAtOffset = useRef(new THREE.Vector3(1.2, -0.1, 3)); // Look target
+  
+  // Movement effect controls
+  const movementIntensity = useRef(0);
+  const headBobOffset = useRef(0);
 
-  useFrame(({ camera }) => {
-    if (charRef.current) {
-      const charPos = new THREE.Vector3();
-      charRef.current.getWorldPosition(charPos);
-
-      const followOffset = new THREE.Vector3(1.2, -0.1, 3);
-      const lookAtOffset = new THREE.Vector3(1.2, 0, 2);
-
-      const targetPos = charPos.clone().add(followOffset);
-      camera.position.lerp(targetPos, 0.1);
-
-      const lookAtPos = charPos.clone().add(lookAtOffset);
-      camera.lookAt(lookAtPos);
+  useFrame(({ camera }, delta) => {
+    if (!charRef.current) return;
+  
+    // 1. Get character state
+    const characterPos = new THREE.Vector3();
+    charRef.current.getWorldPosition(characterPos);
+    const characterRot = charRef.current.rotation.y;
+  
+    // 2. Calculate dynamic effects (adjusted for 0.6 speed)
+    movementIntensity.current = THREE.MathUtils.lerp(
+      movementIntensity.current,
+      direction.current.forward ? 0.15 : 0, // Reduced push amount for slower speed
+      delta * 5
+    );
+  
+    // Head bobbing (frequency adjusted for 0.6 speed)
+    if (direction.current.forward) {
+      headBobOffset.current = Math.sin(performance.now() * 0.008) * 0.03; // Slower, subtler bob
+    } else {
+      headBobOffset.current = THREE.MathUtils.lerp(headBobOffset.current, 0, delta * 5);
     }
+  
+    // 3. Camera offsets (aligned with +Z forward movement)
+    const cameraOffset = new THREE.Vector3(1.2, -0.1, 3); // Negative Z for behind
+    const lookAtOffset = new THREE.Vector3(1.2, 0, 2);   // Positive Z for ahead
+  
+    // Apply character rotation
+    cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
+    lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
+  
+    // 4. Movement effects (scaled to 0.6 speed)
+    const pushVector = new THREE.Vector3(0, 0, movementIntensity.current);
+    pushVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
+  
+    // Final positions
+    const targetPos = characterPos
+      .clone()
+      .add(cameraOffset)
+      .add(pushVector)
+      .add(new THREE.Vector3(0, headBobOffset.current, 0));
+  
+    const targetLookAt = characterPos
+      .clone()
+      .add(lookAtOffset)
+      .add(new THREE.Vector3(0, headBobOffset.current * 0.5, 0));
+  
+    // 5. Smooth movement (tighter follow for slow speed)
+    camera.position.lerp(targetPos, 0.15); // Increased from 0.1
+    camera.lookAt(targetLookAt);
   });
 
   return (
     <>
       <DreiEnvironment preset="sunset" />
       <ambientLight intensity={0.7} />
-      <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-      <spotLight
-        position={[0, 5, 0]}
-        intensity={0.8}
-        angle={0.6}
-        penumbra={0.5}
-        castShadow
-        target={charRef.current || undefined}
-      />
       <group ref={charRef}>
         <Character />
       </group>
@@ -260,6 +393,7 @@ const Scene = () => {
     </>
   );
 };
+
 
 const Game: React.FC = () => {
   const { currentQuestion, score, currentLevel, answerQuestion, fetchQuestion } = useGameStore();
