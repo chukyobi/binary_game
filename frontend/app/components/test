@@ -1,0 +1,219 @@
+'use client';
+
+import React, { Suspense, useState, useEffect, useCallback, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import {
+  OrbitControls,
+  Environment as DreiEnvironment,
+  useGLTF,
+  useAnimations,
+} from '@react-three/drei';
+import * as THREE from 'three';
+import { Physics, RigidBody, RigidBodyApi } from '@react-three/rapier';
+
+import LoadingSpinner from './LoadingSpinner';
+import QuestionOverlay from './QuestionOverlay';
+import { useGameStore } from '../stores/gameStore';
+import { useAuthStore } from '../stores/authStore';
+
+const CHARACTER_MODEL = '/3d/models/adventurer/model.glb';
+const ENVIRONMENT_MODEL = '/3d/environments/city/scene.glb';
+
+const direction = { current: { forward: false, right: false, left: false } };
+
+const Character = ({ onReady }: { onReady: (ref: RigidBodyApi) => void }) => {
+  const { scene, animations } = useGLTF(CHARACTER_MODEL);
+  const groupRef = useRef<THREE.Group>(null);
+  const rigidBodyRef = useRef<RigidBodyApi>(null);
+  const { actions, mixer } = useAnimations(animations, groupRef);
+
+  const [isRunning, setIsRunning] = useState(false);
+  const velocity = useRef(new THREE.Vector3());
+
+  useEffect(() => {
+    if (rigidBodyRef.current) onReady(rigidBodyRef.current);
+  }, [onReady]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key.toLowerCase()) {
+        case 'w': direction.current.forward = true; setIsRunning(true); break;
+        case 'a': direction.current.left = true; break;
+        case 'd': direction.current.right = true; break;
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      switch (e.key.toLowerCase()) {
+        case 'w': direction.current.forward = false; setIsRunning(false); break;
+        case 'a': direction.current.left = false; break;
+        case 'd': direction.current.right = false; break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const runAnim = actions['Run'] || actions['run'];
+    const idleAnim = actions['Idle'] || actions['idle'];
+    if (isRunning && runAnim) {
+      runAnim.reset().fadeIn(0.2).play();
+    } else if (idleAnim) {
+      idleAnim.reset().fadeIn(0.2).play();
+    }
+  }, [isRunning, actions]);
+
+  useFrame((_, delta) => {
+    if (mixer) mixer.update(delta);
+
+    const speed = 2;
+    const moveVec = new THREE.Vector3();
+
+    if (direction.current.forward) moveVec.z -= speed;
+    if (direction.current.left) moveVec.x -= speed;
+    if (direction.current.right) moveVec.x += speed;
+
+    moveVec.normalize().multiplyScalar(speed * delta);
+
+    if (rigidBodyRef.current) {
+      rigidBodyRef.current.setLinvel({ x: moveVec.x, y: 0, z: moveVec.z }, true);
+    }
+
+    if (groupRef.current) {
+      const angle = Math.atan2(moveVec.x, moveVec.z);
+      if (!isNaN(angle)) groupRef.current.rotation.y = angle;
+    }
+  });
+
+  return (
+    <RigidBody
+      ref={rigidBodyRef}
+      colliders="hull"
+      position={[0, 0.5, 0]}
+      friction={1}
+      restitution={0}
+    >
+      <primitive ref={groupRef} object={scene} scale={0.15} />
+    </RigidBody>
+  );
+};
+
+Character.displayName = 'Character';
+
+const GameEnvironment = () => {
+  const { scene } = useGLTF(ENVIRONMENT_MODEL);
+  const envRef = useRef<THREE.Group>(null);
+
+  useEffect(() => {
+    const box = new THREE.Box3().setFromObject(scene);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    scene.position.sub(center);
+    scene.position.y = -0.5;
+  }, [scene]);
+
+  return (
+    <RigidBody type="fixed" colliders="trimesh">
+      <primitive ref={envRef} object={scene} scale={0.22} />
+    </RigidBody>
+  );
+};
+
+const Scene = () => {
+  const charBodyRef = useRef<RigidBodyApi | null>(null);
+
+  const handleCharacterReady = useCallback((ref: RigidBodyApi) => {
+    charBodyRef.current = ref;
+  }, []);
+
+  useFrame(({ camera }) => {
+    if (charBodyRef.current) {
+      const pos = charBodyRef.current.translation();
+      const target = new THREE.Vector3(pos.x + 1.2, pos.y + 0.5, pos.z + 3);
+      camera.position.lerp(target, 0.1);
+      camera.lookAt(pos.x, pos.y + 0.5, pos.z);
+    }
+  });
+
+  return (
+    <>
+      <DreiEnvironment preset="sunset" />
+      <ambientLight intensity={0.7} />
+      <Physics gravity={[0, -9.81, 0]}>
+        <Character onReady={handleCharacterReady} />
+        <GameEnvironment />
+      </Physics>
+    </>
+  );
+};
+
+
+const Game: React.FC = () => {
+  const { currentQuestion, score, currentLevel, answerQuestion, fetchQuestion } = useGameStore();
+  const { user } = useAuthStore();
+
+  const [modelError, setModelError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const initializeGame = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      await Promise.all([
+        useGLTF.preload(CHARACTER_MODEL),
+        useGLTF.preload(ENVIRONMENT_MODEL),
+      ]);
+      if (!currentQuestion && currentLevel) {
+        await fetchQuestion(currentLevel);
+      }
+    } catch (error) {
+      console.error('[Game] Failed to initialize:', error);
+      setModelError('Failed to load assets. Refresh page.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchQuestion, currentQuestion, currentLevel]);
+
+  useEffect(() => {
+    initializeGame();
+  }, [initializeGame]);
+
+  const handleAnswer = useCallback(async (answer: string) => {
+    if (currentQuestion) await answerQuestion(answer);
+  }, [currentQuestion, answerQuestion]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full h-screen">
+      {modelError && (
+        <div className="absolute top-0 left-0 right-0 bg-red-500 text-white p-2 text-center z-10">
+          {modelError}
+        </div>
+      )}
+      <div className="absolute w-full h-full">
+        <Canvas camera={{ position: [0, 1, 5], fov: 65 }} shadows>
+          <Suspense fallback={null}>
+            <Scene />
+          </Suspense>
+        </Canvas>
+      </div>
+      {/* {currentQuestion && <QuestionOverlay onAnswer={handleAnswer} />} */}
+      <div className="absolute top-4 right-4 text-white text-xl">Score: {score}</div>
+      <div className="absolute top-4 left-4 text-white text-md bg-black bg-opacity-50 px-4 py-2 rounded-lg shadow">
+        {user?.username ? `Player: ${user.username}` : 'Guest'}
+      </div>
+    </div>
+  );
+};
+
+export default Game;

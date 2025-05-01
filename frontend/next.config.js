@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
-};
+  webpack: (config) => {
+    // Add support for WebAssembly for physics engine
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+    
+    return config;
+  },
+}
 
-module.exports = nextConfig; 
+module.exports = nextConfig;
