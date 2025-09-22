@@ -15,7 +15,7 @@ Object.defineProperty(exports, "prisma", { enumerable: true, get: function () { 
 const app = (0, express_1.default)();
 app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)({
-    origin: 'http://localhost:3000',
+    origin: "https://binary-game-six.vercel.app",
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -28,7 +28,7 @@ app.use((err, _req, res, _next) => {
     console.error(err.stack);
     res.status(500).json({ message: 'Something went wrong!' });
 });
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5050;
 async function startServer() {
     try {
         await prisma_1.prisma.$connect();

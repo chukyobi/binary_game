@@ -10,8 +10,15 @@ const app = express();
 
 // Middleware
 app.use(helmet());
+const allowedOrigins = (
+  process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean) || []
+).concat([
+  'http://localhost:3000',
+  'https://binary-game-six.vercel.app'
+]);
+
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
