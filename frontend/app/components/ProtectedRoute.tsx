@@ -11,27 +11,21 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('ProtectedRoute: Component mounted');
-    
     const verifyAuth = async () => {
-      console.log('ProtectedRoute: Starting auth verification');
       try {
-        await checkAuth();
-        console.log('ProtectedRoute: Auth verification successful');
+        await checkAuth(); // fetch user if not already in store
       } catch (error) {
-        console.error('ProtectedRoute: Auth verification failed:', error);
-        router.push('/auth');
+        console.error('Auth verification failed:', error);
       } finally {
-        console.log('ProtectedRoute: Setting loading to false');
         setIsLoading(false);
       }
     };
 
     verifyAuth();
-  }, [checkAuth, router]); // Removed user from dependencies
+  }, [checkAuth]);
 
+  // Show spinner while auth is being verified
   if (isLoading) {
-    console.log('ProtectedRoute: Rendering loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <LoadingSpinner size="lg" />
@@ -39,13 +33,14 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     );
   }
 
+  // Redirect to /auth if user not found
   if (!user) {
-    console.log('ProtectedRoute: No user found, should redirect to auth');
+    router.replace('/auth');
     return null;
   }
 
-  console.log('ProtectedRoute: Rendering protected content');
+  // User is authenticated — render protected content
   return <>{children}</>;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;

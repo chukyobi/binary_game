@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGameStore } from '../stores/gameStore';
 import { useAuthStore } from '../stores/authStore';
@@ -19,19 +19,17 @@ const LevelSelect: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [isLoadingLevels, setIsLoadingLevels] = useState(true);
-  const [hasFetched, setHasFetched] = useState(false);
-
-  const router = useRouter();
   const { user } = useAuthStore();
   const { fetchQuestion } = useGameStore();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchLevels = async () => {
-      if (!user || hasFetched) return;
+      if (!user) return;
 
       try {
-        const levels = await gameApi.getLevels();
-        const levelsData = levels.map((level: { number: number; name: string; description: string; difficulty: string }) => ({
+        const response = await gameApi.getLevels();
+        const levelsData = response.map((level: any) => ({
           level: level.number,
           name: level.name,
           description: level.description,
@@ -40,7 +38,6 @@ const LevelSelect: React.FC = () => {
         }));
 
         setLevels(levelsData);
-        setHasFetched(true);
       } catch (error) {
         console.error('Failed to fetch levels:', error);
       } finally {
@@ -49,7 +46,7 @@ const LevelSelect: React.FC = () => {
     };
 
     fetchLevels();
-  }, [user, hasFetched]);
+  }, [user]);
 
   const handleLevelSelect = (level: number) => {
     const levelObj = levels.find(l => l.level === level);
@@ -75,7 +72,6 @@ const LevelSelect: React.FC = () => {
       </div>
     );
   }
-
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
