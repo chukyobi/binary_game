@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') + '/api' ||
-  'https://binary-game.onrender.com/api';
+  (process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ||
+    'https://binary-game.onrender.com') + '/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -11,6 +11,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
 
 api.interceptors.response.use(
   (response) => response,
@@ -28,7 +29,14 @@ const extractData = <T>(response: { data: T }) => response.data;
 // --------- Auth API ---------
 export const authApi = {
   login: (username: string) => api.post('/auth/login', { username }).then(extractData),
-  register: (username: string) => api.post('/auth/register', { username }).then(extractData),
+  register: async (username: string) => {
+    console.log("📤 Register request to:", API_URL + "/auth/register");
+    console.log("📦 Payload:", { username });
+  
+    const res = await api.post('/auth/register', { username });
+    console.log("✅ Response:", res.data);
+    return res.data;
+  },
   logout: () => api.post('/auth/logout').then(extractData),
   checkAuth: () => api.get('/auth/me').then(extractData),
 };

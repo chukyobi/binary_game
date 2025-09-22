@@ -38,9 +38,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const response = await authApi.login(username);
       set({ user: response.user, isLoading: false });
-    } catch (error) {
-      set({ error: 'Login failed', isLoading: false });
-      throw error;
+    } catch (err: any) {
+      const message =
+        err.response?.data?.error || 'Login failed. Please try again.';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 
@@ -50,9 +52,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       const response = await authApi.register(username);
       set({ user: response.user, isLoading: false });
-    } catch (error) {
-      set({ error: 'Registration failed', isLoading: false });
-      throw error;
+    } catch (err: any) {
+      const message =
+        err.response?.data?.error || 'Registration failed. Please try again.';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 
@@ -62,14 +66,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       await authApi.logout();
       set({ user: null, isLoading: false });
-    } catch (error) {
-      set({ error: 'Logout failed', isLoading: false });
-      throw error;
+    } catch (err: any) {
+      const message =
+        err.response?.data?.error || 'Logout failed. Please try again.';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 
   checkAuth: async () => {
-    // ✅ prevent redundant API call
     const { user, isLoading } = get();
     if (user || isLoading) return;
 
@@ -84,9 +89,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         console.log('[checkAuth] No user found');
         set({ user: null });
       }
-    } catch (error) {
-      console.error('[checkAuth] Failed:', error);
-      set({ user: null, error: 'Authentication check failed' });
+    } catch (err: any) {
+      const message =
+        err.response?.data?.error || 'Authentication check failed.';
+      console.error('[checkAuth] Failed:', message);
+      set({ user: null, error: message });
     } finally {
       set({ isLoading: false });
     }
