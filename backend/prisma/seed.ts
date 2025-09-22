@@ -100,7 +100,10 @@ async function main() {
 main()
   .catch((e) => {
     console.error('❌ Seed failed:', e);
-    process.exit(1);
+    // Use globalThis.process to avoid issues if process is not defined in some environments
+    if (typeof globalThis.process !== 'undefined') {
+      globalThis.process.exit(1);
+    }
   })
   .finally(async () => {
     await prisma.$disconnect();
