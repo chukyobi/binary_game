@@ -34,16 +34,16 @@ async function startServer() {
         await prisma_1.prisma.$connect();
         console.log('✅ Successfully connected to database');
         app.listen(PORT, () => {
-            console.log(`🚀 Server is running on port ${PORT}`);
+            console.log(` Server is running on port ${PORT}`);
         });
     }
     catch (error) {
-        console.error('❌ Failed to connect to database:', error);
+        console.error('Failed to connect to database:', error);
         process.exit(1);
     }
 }
 startServer().catch((error) => {
-    console.error('❌ Failed to start server:', error);
+    console.error(' Failed to start server:', error);
     process.exit(1);
 });
 process.on('SIGTERM', async () => {
@@ -56,4 +56,3 @@ process.on('SIGINT', async () => {
     await prisma_1.prisma.$disconnect();
     process.exit(0);
 });
-//# sourceMappingURL=server.js.map

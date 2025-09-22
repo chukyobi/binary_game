@@ -27,6 +27,7 @@ export interface Question {
   id: string;
   question: string;
   options: string[];
+  correctAnswer: string;
   type: 'binary' | 'multiple';
   difficulty: number;
   level: number;

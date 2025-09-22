@@ -8,17 +8,16 @@ import React, {
   useRef,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Physics, RigidBody, RigidBodyApi  } from "@react-three/rapier";
+import { Physics, RigidBody, RigidBodyApi, CuboidCollider  } from "@react-three/rapier";
 import {
-  OrbitControls,
   Environment as DreiEnvironment,
   useGLTF,
-  useAnimations,
 } from "@react-three/drei";
 import * as THREE from "three";
 
 import LoadingSpinner from "./LoadingSpinner";
-import QuestionOverlay from "./QuestionOverlay";
+import Obstacles from "./Obstacles";
+import QuestionBillboard from "./QuestionBillboard";
 
 import { useGameStore } from "../stores/gameStore";
 import { useAuthStore } from "../stores/authStore";
@@ -32,69 +31,25 @@ const direction = {
 //const characterRotationY = { current: 0 };
 
 const Character = () => {
-  const { scene, animations } = useGLTF(CHARACTER_MODEL);
-  const ref = useRef<THREE.Group>(null);
-  const { actions, mixer } = useAnimations(animations, ref);
-  const { camera } = useThree();
+  const { scene } = useGLTF(CHARACTER_MODEL);
+  const ref = useRef<RigidBodyApi>(null);
+  const posXRef = useRef(0.3);
 
-  const [currentAnimation, setCurrentAnimation] = useState<string | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [availableAnimations, setAvailableAnimations] = useState<string[]>([]);
-
-  //Extracts animation names and stores them when the model loads.
   useEffect(() => {
-    if (animations) {
-      const animNames = animations.map((anim) => anim.name);
-      console.log("Available animations:", animNames);
-      setAvailableAnimations(animNames);
-    }
-  }, [animations]);
-
-  //   Sets character’s default rotation and position.  + Registers key listeners to update movement direction and run state.
-  useEffect(() => {
-    if (scene && ref.current) {
-      ref.current.rotation.y = Math.PI;
-      const bbox = new THREE.Box3().setFromObject(scene);
-      const center = new THREE.Vector3();
-      bbox.getCenter(center);
-      scene.position.set(-1.3, -0.4, -2.55);
+    if (scene) {
+      scene.rotation.y = Math.PI; // rotate the model, not the rigidbody
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key.toLowerCase()) {
-        case "w":
-          direction.current.forward = true;
-          setIsRunning(true);
-          break;
-        case "z":
-          direction.current.backward = true;
-          setIsRunning(true);
-          break;
-        case "a":
-          direction.current.left = true;
-          break;
-        case "d":
-          direction.current.right = true;
-          break;
-      }
+      const key = e.key.toLowerCase();
+      if (key === "a" || key === "arrowleft") direction.current.left = true;
+      if (key === "d" || key === "arrowright") direction.current.right = true;
     };
+
     const handleKeyUp = (e: KeyboardEvent) => {
-      switch (e.key.toLowerCase()) {
-        case "w":
-          direction.current.forward = false;
-          setIsRunning(false);
-          break;
-        case "z":
-          direction.current.forward = false;
-          setIsRunning(false);
-          break;
-        case "a":
-          direction.current.left = false;
-          break;
-        case "d":
-          direction.current.right = false;
-          break;
-      }
+      const key = e.key.toLowerCase();
+      if (key === "a" || key === "arrowleft") direction.current.left = false;
+      if (key === "d" || key === "arrowright") direction.current.right = false;
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -103,224 +58,44 @@ const Character = () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!actions || Object.keys(actions).length === 0) {
-      console.error("No animation actions available");
-      return;
-    }
-
-    const findAnimation = (
-      names: string[],
-      fallbackNames: string[]
-    ): THREE.AnimationAction | undefined => {
-      for (const name of names) {
-        const action = actions[name];
-        if (action) return action;
-      }
-
-      for (const action of Object.values(actions)) {
-        if (!action) continue;
-        for (const name of fallbackNames) {
-          if (
-            action.getClip().name.toLowerCase().includes(name.toLowerCase())
-          ) {
-            return action;
-          }
-        }
-      }
-
-      return undefined;
-    };
-
-    let nextAnimation: THREE.AnimationAction | undefined;
-
-    if (isRunning) {
-      nextAnimation = findAnimation(
-        ["Run", "run", "Running", "running"],
-        ["run"]
-      );
-    } else {
-      nextAnimation = findAnimation(
-        ["Idle", "idle", "Standing", "standing"],
-        ["idle"]
-      );
-    }
-
-    if (!nextAnimation) {
-      const availableActions = Object.values(actions).filter(
-        (a): a is THREE.AnimationAction => a !== null
-      );
-      if (availableActions.length > 0) {
-        nextAnimation = availableActions[0];
-        console.warn(
-          "No matching animation found, falling back to first available."
-        );
-      }
-    }
-
-    if (nextAnimation) {
-      const clipName = nextAnimation.getClip().name;
-      if (!currentAnimation || currentAnimation !== clipName) {
-        mixer?.stopAllAction();
-        nextAnimation.reset().fadeIn(0.2).play();
-        setCurrentAnimation(clipName);
-        console.log(`Playing animation: ${clipName}`);
-      }
-    }
-  }, [isRunning, actions, mixer, currentAnimation]);
+  }, [scene]);
 
   useFrame((_, delta) => {
-    if (mixer) mixer.update(delta);
     if (!ref.current) return;
 
-    const moveSpeed = 0.6;
-    const moveDir = new THREE.Vector3();
+    const moveSpeed = 3;
+    const inputAxis =
+      (direction.current.right ? 1 : 0) - (direction.current.left ? 1 : 0);
+    posXRef.current += inputAxis * moveSpeed * delta;
 
-    if (direction.current.forward) moveDir.z -= -1;
-    if (direction.current.forward) moveDir.z -= +1;
-    if (direction.current.left) moveDir.x -= 1;
-    if (direction.current.right) moveDir.x += 1;
-
-    if (moveDir.lengthSq() > 0) {
-      // Camera-relative movement
-      const cameraDir = new THREE.Vector3();
-      camera.getWorldDirection(cameraDir);
-      cameraDir.y = 0;
-      cameraDir.normalize();
-
-      const right = new THREE.Vector3();
-      right.crossVectors(new THREE.Vector3(0, 1, 0), cameraDir).normalize();
-
-      const finalDir = new THREE.Vector3();
-      finalDir.addScaledVector(cameraDir, moveDir.z);
-      finalDir.addScaledVector(right, moveDir.x);
-      finalDir.normalize();
-
-      ref.current.position.addScaledVector(finalDir, moveSpeed * delta);
-
-      if (finalDir.lengthSq() > 0.01) {
-        const targetY = Math.atan2(finalDir.x, finalDir.z);
-        ref.current.rotation.y = targetY;
-      }
-    }
+    const currentPos = ref.current.translation();
+    ref.current.setNextKinematicTranslation({
+      x: THREE.MathUtils.lerp(currentPos.x, posXRef.current, delta * moveSpeed),
+      y: -0.45,
+      z: 1.7,
+    });
   });
 
   return (
-    <group ref={ref}>
+    <RigidBody
+      ref={ref}
+      type="kinematicPosition"
+      colliders={false} // turn off auto colliders
+      onCollisionEnter={(payload) => {
+        // 'other' does not exist on type 'CollisionEnterPayload'
+        // Log the whole payload for debugging
+        console.log("Character hit:", payload);
+      }}
+    >
+      {/* Character model */}
       <primitive object={scene} scale={0.15} />
-    </group>
+
+      {/* Physics collider */}
+      <CuboidCollider args={[0.5, 1, 0.5]} /> 
+    </RigidBody>
   );
 };
 
-// const GameEnvironment = () => {
-//   const { scene } = useGLTF(ENVIRONMENT_MODEL);
-//   const envRef = useRef<THREE.Group>(null);
-
-//   const [isPlayerRunning, setIsPlayerRunning] = useState(false);
-//   const playerVelocity = useRef(0);
-
-//   useEffect(() => {
-//     const box = new THREE.Box3().setFromObject(scene);
-//     const center = new THREE.Vector3();
-//     box.getCenter(center);
-
-//     scene.position.x -= center.x;
-//     scene.position.z -= center.z;
-//     scene.position.y = -0.5;
-
-//     const handleKeyDown = (e: KeyboardEvent) => {
-//       if (e.key.toLowerCase() === 'w') {
-//         setIsPlayerRunning(true);
-//         playerVelocity.current = 2;
-//       }
-//     };
-
-//     const handleKeyUp = (e: KeyboardEvent) => {
-//       if (e.key.toLowerCase() === 'w') {
-//         setIsPlayerRunning(false);
-//         playerVelocity.current = 0;
-//       }
-//     };
-
-//     window.addEventListener('keydown', handleKeyDown);
-//     window.addEventListener('keyup', handleKeyUp);
-
-//     return () => {
-//       window.removeEventListener('keydown', handleKeyDown);
-//       window.removeEventListener('keyup', handleKeyUp);
-//     };
-//   }, [scene]);
-
-//   useFrame((_, delta) => {
-//     if (!envRef.current) return;
-
-//     const speed = 2;
-//     const offset = new THREE.Vector3();
-
-//     if (direction.current.forward) {
-//       offset.z += speed * delta;
-//     }
-//     if (direction.current.right) {
-//       offset.x -= speed * delta;
-//     }
-//     if (direction.current.left) {
-//       offset.x += speed * delta;
-//     }
-
-//     envRef.current.position.add(offset);
-//   });
-
-//   return <primitive ref={envRef} object={scene} scale={0.22} />;
-// };
-
-// const Scene = () => {
-//   const charRef = useRef<THREE.Group>(null);
-
-//   useFrame(({ camera }) => {
-//     if (charRef.current) {
-//       // Get character's world position
-//       const charPos = new THREE.Vector3();
-//       charRef.current.getWorldPosition(charPos);
-
-//       // Calculate camera offset relative to character's rotation
-//       const followOffset = new THREE.Vector3(1.2, -0.1, 3);
-//       const lookAtOffset = new THREE.Vector3(1.2, 0, 2);
-
-//       // Rotate the offset vectors based on character's Y rotation
-//       followOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), charRef.current.rotation.y);
-//       lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), charRef.current.rotation.y);
-
-//       // Calculate target positions
-//       const targetPos = charPos.clone().add(followOffset);
-//       camera.position.lerp(targetPos, 0.1);
-
-//       const lookAtPos = charPos.clone().add(lookAtOffset);
-//       camera.lookAt(lookAtPos);
-//     }
-//   });
-
-//   return (
-//     <>
-//       <DreiEnvironment preset="sunset" />
-//       <ambientLight intensity={0.7} />
-//       <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow />
-//       <spotLight
-//         position={[0, 5, 0]}
-//         intensity={0.8}
-//         angle={0.6}
-//         penumbra={0.5}
-//         castShadow
-//         target={charRef.current || undefined}
-//       />
-//       <group ref={charRef}>
-//         <Character />
-//       </group>
-//       <GameEnvironment />
-//     </>
-//   );
-// };
 
 const GameEnvironment = () => {
   const { scene } = useGLTF(ENVIRONMENT_MODEL);
@@ -365,9 +140,7 @@ const GameEnvironment = () => {
 const Scene = () => {
   const charRef = useRef<THREE.Group>(null);
 
-  // Your original offsets (preserved)
-  // const baseCameraOffset = useRef(new THREE.Vector3(1.2, 0, 2)); // Right, height, distance
-  // const baseLookAtOffset = useRef(new THREE.Vector3(1.2, -0.1, 3)); // Look target
+
 
   // Movement effect controls
   const movementIntensity = useRef(0);
@@ -381,50 +154,38 @@ const Scene = () => {
     charRef.current.getWorldPosition(characterPos);
     const characterRot = charRef.current.rotation.y;
 
-    // 2. Calculate dynamic effects (adjusted for 0.6 speed)
-    movementIntensity.current = THREE.MathUtils.lerp(
-      movementIntensity.current,
-      direction.current.forward ? 0.15 : 0, // Reduced push amount for slower speed
-      delta * 5
-    );
+    // 2. Calculate dynamic effects based on lateral movement only
+    movementIntensity.current = 0;
 
     // Head bobbing (frequency adjusted for 0.6 speed)
-    if (direction.current.forward) {
-      headBobOffset.current = Math.sin(performance.now() * 0.008) * 0.03; // Slower, subtler bob
-    } else {
-      headBobOffset.current = THREE.MathUtils.lerp(
-        headBobOffset.current,
-        0,
-        delta * 5
-      );
-    }
+    headBobOffset.current = 0;
 
-    // 3. Camera offsets (aligned with +Z forward movement)
-    const cameraOffset = new THREE.Vector3(1.2, -0.1, 3); // Negative Z for behind
-    const lookAtOffset = new THREE.Vector3(1.2, 0, 2); // Positive Z for ahead
+    // 3. Camera offsets (aligned with +Z forward movement). No lateral sliding.
+    const cameraOffset = new THREE.Vector3(1.2, -0.1, 3);
+    const lookAtOffset = new THREE.Vector3(1.2, 0, 2);
 
     // Apply character rotation
     cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
     lookAtOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
 
     // 4. Movement effects (scaled to 0.6 speed)
-    const pushVector = new THREE.Vector3(0, 0, movementIntensity.current);
+    const pushVector = new THREE.Vector3(0, 0, 0);
+
+    // No lateral camera lead; camera follows character only
     pushVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
 
     // Final positions
     const targetPos = characterPos
       .clone()
-      .add(cameraOffset)
-      .add(pushVector)
-      .add(new THREE.Vector3(0, headBobOffset.current, 0));
+      .add(cameraOffset);
 
     const targetLookAt = characterPos
       .clone()
-      .add(lookAtOffset)
-      .add(new THREE.Vector3(0, headBobOffset.current * 0.5, 0));
+      .add(lookAtOffset);
 
-    // 5. Smooth movement (tighter follow for slow speed)
-    camera.position.lerp(targetPos, 0.15); // Increased from 0.1
+    // 5. Smooth movement (pause-aware follow)
+    const lerpFactor = 0.15;
+    camera.position.lerp(targetPos, lerpFactor);
     camera.lookAt(targetLookAt);
   });
 
@@ -434,8 +195,11 @@ const Scene = () => {
       <ambientLight intensity={0.7} />
       <group ref={charRef}>
         <Character />
+        {/* Question billboard floats above character */}
+        <QuestionBillboard />
       </group>
       <GameEnvironment />
+      <Obstacles />
     </>
   );
 };
@@ -447,6 +211,8 @@ const Game: React.FC = () => {
     currentLevel,
     answerQuestion,
     fetchQuestion,
+    isPaused,
+    setPaused,
   } = useGameStore();
   const { user } = useAuthStore();
 
@@ -521,17 +287,79 @@ const Game: React.FC = () => {
           <Suspense fallback={null}>
             <Physics gravity={[0, -9.81, 0]}>
               {/* Your game components */}
-              <Character />
               <Scene />
             </Physics>
           </Suspense>
         </Canvas>
       </div>
-      {/* {currentQuestion && <QuestionOverlay onAnswer={handleAnswer} />} */}
+
+      {/* Touch/Click Controls */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-10 select-none">
+        <button
+          className="px-5 py-3 rounded-lg bg-black/60 text-white border border-white/20 active:bg-black/80"
+          onMouseDown={() => !isPaused && (direction.current.left = true)}
+          onMouseUp={() => (direction.current.left = false)}
+          onMouseLeave={() => (direction.current.left = false)}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            if (!isPaused) direction.current.left = true;
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            direction.current.left = false;
+          }}
+        >
+          ◀ Left
+        </button>
+        <button
+          className="px-5 py-3 rounded-lg bg-black/60 text-white border border-white/20 active:bg-black/80"
+          onMouseDown={() => !isPaused && (direction.current.right = true)}
+          onMouseUp={() => (direction.current.right = false)}
+          onMouseLeave={() => (direction.current.right = false)}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            if (!isPaused) direction.current.right = true;
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            direction.current.right = false;
+          }}
+        >
+          Right ▶
+        </button>
+      </div>
 
       <div className="absolute top-4 right-4 text-white text-xl">
         Score: {score}
       </div>
+      <div className="absolute top-16 right-4 z-10">
+        <button
+          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+          onClick={() => setPaused(true)}
+          disabled={!currentQuestion}
+        >
+          Hint
+        </button>
+      </div>
+
+      {isPaused && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
+          <div className="bg-gray-900 text-white p-6 rounded-lg max-w-lg w-11/12 text-center space-y-4">
+            <h3 className="text-lg font-semibold">Hint</h3>
+            <p className="text-sm leading-relaxed">
+              {currentQuestion
+                ? `Think about converting binary to decimal. Each digit represents a power of 2: from right to left 2^0, 2^1, 2^2, ... Add the values where there is a 1.`
+                : "No question loaded."}
+            </p>
+            <button
+              className="mt-2 px-4 py-2 rounded bg-green-600 hover:bg-green-700"
+              onClick={() => setPaused(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <div className="absolute top-4 left-4 text-white text-md bg-black bg-opacity-50 px-4 py-2 rounded-lg shadow">
         {user?.username ? `Player: ${user.username}` : "Guest"}
       </div>

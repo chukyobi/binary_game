@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -28,7 +28,7 @@ model GameProgress {
   completed Boolean  @default(false)
   createdAt DateTime @default(now())
   levelId   String
-  level     Level    @relation(fields: [levelId], references: [id])
+  level     Level    @relation(fields: [levelId], references: [id], map: "GameProgress_level_fkey")
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId, levelId])
@@ -111,7 +111,7 @@ model TipUsage {
   count      Int      @default(0)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  question   Question @relation(fields: [questionId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id], map: "TipUsage_question_fkey")
   user       User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, questionId])
