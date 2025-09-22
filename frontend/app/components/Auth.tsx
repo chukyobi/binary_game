@@ -13,23 +13,36 @@ const Auth: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    
+  
     setIsSubmitting(true);
     setError('');
-    
+  
+    const { checkAuth } = useAuthStore.getState(); // directly get checkAuth from store
+  
     try {
       if (isLogin) {
         await login(username);
       } else {
-        await register(username); 
+        await register(username);
       }
-      router.push('/level-select');
+  
+      // Wait for backend session to be confirmed
+      await checkAuth();
+  
+      // Only push if user is now set in the store
+      const { user } = useAuthStore.getState();
+      if (user) {
+        router.push('/level-select');
+      } else {
+        setError('Failed to authenticate. Please try again.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsSubmitting(false);
     }
   };
+  
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
