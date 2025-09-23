@@ -85,9 +85,9 @@ export const register = async (req: Request, res: Response) => {
     // Set HttpOnly cookie with the token
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      secure: true, // required for SameSite=None on modern browsers
+      sameSite: 'none', // allow cross-site cookie for Vercel frontend
+      maxAge: 24 * 60 * 60 * 1000,
       path: '/'
     });
 
@@ -129,9 +129,9 @@ export const login = async (req: Request, res: Response) => {
     // Set HttpOnly cookie with the token
     res.cookie('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      secure: true,
+      sameSite: 'none',
+      maxAge: 24 * 60 * 60 * 1000,
       path: '/'
     });
 
@@ -154,8 +154,8 @@ export const logout = async (_req: Request, res: Response) => {
   // Clear the auth cookie
   res.clearCookie('auth_token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: true,
+    sameSite: 'none',
     path: '/'
   });
   

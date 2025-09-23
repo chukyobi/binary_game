@@ -7,6 +7,7 @@ import routes from './routes';
 import { prisma } from './lib/prisma';
 
 const app = express();
+app.set('trust proxy', 1); // trust Render/Proxies for secure cookies
 
 // Middleware
 app.use(helmet());
