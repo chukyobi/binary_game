@@ -44,19 +44,19 @@ async function startServer() {
   try {
     // Test database connection
     await prisma.$connect();
-    console.log('✅ Successfully connected to database');
+    console.log(' Successfully connected to database');
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
+      console.log(` Server is running on port ${PORT}`);
     });
   } catch (error) {
-    console.error('❌ Failed to connect to database:', error);
+    console.error('Failed to connect to database:', error);
     process.exit(1);
   }
 }
 
 startServer().catch((error) => {
-  console.error('❌ Failed to start server:', error);
+  console.error('Failed to start server:', error);
   process.exit(1);
 });
 
