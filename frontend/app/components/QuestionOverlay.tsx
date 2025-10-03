@@ -11,9 +11,9 @@ const QuestionOverlay: React.FC<QuestionOverlayProps> = ({ onAnswer }) => {
   if (!currentQuestion) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <div className="bg-black rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-xl font-bold mb-4">{currentQuestion.question}</h2>
+    <div className="fixed inset-0 flex items-center ml-20 z-50">
+      <div className="bg-transparent rounded-lg p-6 max-w-xs w-full">
+        <h2 className="text-md font-bold mb-4">{currentQuestion.question}</h2>
         <div className="space-y-2">
           {currentQuestion.options.map((option, index) => (
             <button
