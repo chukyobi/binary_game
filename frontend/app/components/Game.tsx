@@ -8,11 +8,13 @@ import React, {
   useRef,
 } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Physics, RigidBody, RigidBodyApi, CuboidCollider  } from "@react-three/rapier";
 import {
-  Environment as DreiEnvironment,
-  useGLTF,
-} from "@react-three/drei";
+  Physics,
+  RigidBody,
+  RigidBodyApi,
+  CuboidCollider,
+} from "@react-three/rapier";
+import { Environment as DreiEnvironment, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 import LoadingSpinner from "./LoadingSpinner";
@@ -24,17 +26,15 @@ import { useAuthStore } from "../stores/authStore";
 import QuestionOverlay from "./QuestionOverlay";
 import GameOver from "./GameOver";
 
-
-
 const CHARACTER_MODEL = "/3d/models/adventurer/model.glb";
 const ENVIRONMENT_MODEL = "/3d/environments/city/scene.glb";
 
-const direction = {
-  current: { forward: false, backward: false, right: false, left: false },
-};
+// const direction = {
+//   current: { forward: false, backward: false, right: false, left: false },
+// };
 //const characterRotationY = { current: 0 };
 
-const Character = () => {
+const Character = ({ direction }: { direction: React.MutableRefObject<any> }) => {
   const { scene } = useGLTF(CHARACTER_MODEL);
   const ref = useRef<RigidBodyApi>(null);
   const posXRef = useRef(0.3);
@@ -95,11 +95,10 @@ const Character = () => {
       <primitive object={scene} scale={0.15} />
 
       {/* Physics collider */}
-      <CuboidCollider args={[0.5, 1, 0.5]} /> 
+      <CuboidCollider args={[0.5, 1, 0.5]} />
     </RigidBody>
   );
 };
-
 
 const GameEnvironment = () => {
   const { scene } = useGLTF(ENVIRONMENT_MODEL);
@@ -120,31 +119,29 @@ const GameEnvironment = () => {
     initialPos.current = scene.position.clone();
   }, [scene]);
 
-  useFrame((_, delta) => {
-    if (!envRef.current || !initialPos.current) return;
+  // useFrame((_, delta) => {
+  //   if (!envRef.current || !initialPos.current) return;
 
-    // Subtle parallax effect when moving
-    if (direction.current.forward) {
-      // Move environment slightly backward to create parallax
-      envRef.current.position.z += 0.5 * delta; // Adjust speed as needed
-    }
+  //   // Subtle parallax effect when moving
+  //   if (direction.current.forward) {
+  //     // Move environment slightly backward to create parallax
+  //     envRef.current.position.z += 0.5 * delta; // Adjust speed as needed
+  //   }
 
-    // Optional: Add slight horizontal movement when strafing
-    if (direction.current.left) {
-      envRef.current.position.x -= 0.3 * delta;
-    }
-    if (direction.current.right) {
-      envRef.current.position.x += 0.3 * delta;
-    }
-  });
+  //   // Optional: Add slight horizontal movement when strafing
+  //   if (direction.current.left) {
+  //     envRef.current.position.x -= 0.3 * delta;
+  //   }
+  //   if (direction.current.right) {
+  //     envRef.current.position.x += 0.3 * delta;
+  //   }
+  // });
 
   return <primitive ref={envRef} object={scene} scale={0.22} />;
 };
 
-const Scene = () => {
+const Scene = ({ direction }: { direction: React.MutableRefObject<any> }) => {
   const charRef = useRef<THREE.Group>(null);
-
-
 
   // Movement effect controls
   const movementIntensity = useRef(0);
@@ -179,13 +176,9 @@ const Scene = () => {
     pushVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), characterRot);
 
     // Final positions
-    const targetPos = characterPos
-      .clone()
-      .add(cameraOffset);
+    const targetPos = characterPos.clone().add(cameraOffset);
 
-    const targetLookAt = characterPos
-      .clone()
-      .add(lookAtOffset);
+    const targetLookAt = characterPos.clone().add(lookAtOffset);
 
     // 5. Smooth movement (pause-aware follow)
     const lerpFactor = 0.15;
@@ -198,7 +191,7 @@ const Scene = () => {
       <DreiEnvironment preset="sunset" />
       <ambientLight intensity={0.7} />
       <group ref={charRef}>
-        <Character />
+        <Character  direction={direction} />
         {/* Question billboard floats above character */}
         <QuestionBillboard />
       </group>
@@ -209,6 +202,7 @@ const Scene = () => {
 };
 
 const Game: React.FC = () => {
+  const direction = useRef({ forward: false, backward: false, right: false, left: false });
   const {
     currentQuestion,
     score,
@@ -258,7 +252,6 @@ const Game: React.FC = () => {
     },
     [currentQuestion, answerQuestion]
   );
-  
 
   if (isLoading) {
     return (
@@ -294,16 +287,20 @@ const Game: React.FC = () => {
           <Suspense fallback={null}>
             <Physics gravity={[0, -9.81, 0]}>
               {/* Your game components */}
-              <Scene />
+              <Scene direction={direction} />
             </Physics>
           </Suspense>
         </Canvas>
       </div>
 
       {/* Touch/Click Controls */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-10 select-none">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-8 z-[9999] pointer-events-auto">
+
+        {/* Left Button */}
         <button
-          className="px-5 py-3 rounded-lg bg-black/60 text-white border border-white/20 active:bg-black/80"
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-800 border-4 border-pink-500 
+               text-white text-xl font-bold shadow-[0_0_15px_rgba(236,72,153,0.7)] 
+               active:scale-95 transition-transform duration-150 flex items-center justify-center"
           onMouseDown={() => !isPaused && (direction.current.left = true)}
           onMouseUp={() => (direction.current.left = false)}
           onMouseLeave={() => (direction.current.left = false)}
@@ -316,10 +313,14 @@ const Game: React.FC = () => {
             direction.current.left = false;
           }}
         >
-          ◀ Left
+          ◀
         </button>
+
+        {/* Right Button */}
         <button
-          className="px-5 py-3 rounded-lg bg-black/60 text-white border border-white/20 active:bg-black/80"
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-600 to-indigo-800 border-4 border-pink-500 
+               text-white text-xl font-bold shadow-[0_0_15px_rgba(236,72,153,0.7)] 
+               active:scale-95 transition-transform duration-150 flex items-center justify-center"
           onMouseDown={() => !isPaused && (direction.current.right = true)}
           onMouseUp={() => (direction.current.right = false)}
           onMouseLeave={() => (direction.current.right = false)}
@@ -332,7 +333,7 @@ const Game: React.FC = () => {
             direction.current.right = false;
           }}
         >
-          Right ▶
+          ▶
         </button>
       </div>
 
@@ -349,8 +350,8 @@ const Game: React.FC = () => {
         </button>
       </div>
 
-       {/* Question Overlay */}
-    <QuestionOverlay onAnswer={handleAnswer} />
+      {/* Question Overlay */}
+      <QuestionOverlay onAnswer={handleAnswer} />
 
       {isPaused && (
         <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
@@ -375,7 +376,6 @@ const Game: React.FC = () => {
       </div>
 
       {isGameOver && <GameOver onRestart={() => resetGame()} />}
-
     </div>
   );
 };
