@@ -1,4 +1,4 @@
-// stores/gameStore.ts
+
 import { create } from 'zustand';
 import { gameApi } from '../lib/api';
 import { Question, GameState } from '../types';
