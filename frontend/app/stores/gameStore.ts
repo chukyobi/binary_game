@@ -1,4 +1,4 @@
-
+// stores/gameStore.ts
 import { create } from 'zustand';
 import { gameApi } from '../lib/api';
 import { Question, GameState } from '../types';
@@ -71,10 +71,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!currentQuestion) return false;
   
     try {
-      const isCorrect = await gameApi.submitAnswer(currentQuestion.id, answer);
+      const { isCorrect } = await gameApi.submitAnswer(currentQuestion.id, answer);
   
       if (isCorrect) {
-        // calculate score boost
+        // correct → add points
         const difficultyLevel = getDifficultyLevel(currentQuestion.difficulty);
         const multiplier = SCORE_MULTIPLIERS[difficultyLevel];
         const newScore = score + 10 * multiplier;
@@ -84,16 +84,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
           highScore: Math.max(newScore, state.highScore),
         }));
   
-        // fetch next question
         await get().fetchQuestion(currentLevel + 1);
       } else {
-        // wrong answer → subtract points
-        const newScore = score - 5; // penalty amount
+        // wrong → subtract points
+        const newScore = score - 5;
         if (newScore <= 0) {
           set({ score: 0, isGameOver: true });
         } else {
           set({ score: newScore });
-          // still move to next question if game not over
           await get().fetchQuestion(currentLevel + 1);
         }
       }
@@ -108,6 +106,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return false;
     }
   },
+  
+  
   
 
   updateScore: (points: number) => {
