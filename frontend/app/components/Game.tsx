@@ -21,6 +21,10 @@ import QuestionBillboard from "./QuestionBillboard";
 
 import { useGameStore } from "../stores/gameStore";
 import { useAuthStore } from "../stores/authStore";
+import QuestionOverlay from "./QuestionOverlay";
+import GameOver from "./GameOver";
+
+
 
 const CHARACTER_MODEL = "/3d/models/adventurer/model.glb";
 const ENVIRONMENT_MODEL = "/3d/environments/city/scene.glb";
@@ -213,6 +217,8 @@ const Game: React.FC = () => {
     fetchQuestion,
     isPaused,
     setPaused,
+    isGameOver,
+    resetGame,
   } = useGameStore();
   const { user } = useAuthStore();
 
@@ -252,6 +258,7 @@ const Game: React.FC = () => {
     },
     [currentQuestion, answerQuestion]
   );
+  
 
   if (isLoading) {
     return (
@@ -342,6 +349,9 @@ const Game: React.FC = () => {
         </button>
       </div>
 
+       {/* Question Overlay */}
+    <QuestionOverlay onAnswer={handleAnswer} />
+
       {isPaused && (
         <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-20">
           <div className="bg-gray-900 text-white p-6 rounded-lg max-w-lg w-11/12 text-center space-y-4">
@@ -363,6 +373,9 @@ const Game: React.FC = () => {
       <div className="absolute top-4 left-4 text-white text-md bg-black bg-opacity-50 px-4 py-2 rounded-lg shadow">
         {user?.username ? `Player: ${user.username}` : "Guest"}
       </div>
+
+      {isGameOver && <GameOver onRestart={() => resetGame()} />}
+
     </div>
   );
 };
