@@ -1,4 +1,4 @@
-// stores/gameStore.ts
+
 import { create } from 'zustand';
 import { gameApi } from '../lib/api';
 import { Question, GameState } from '../types';
@@ -67,36 +67,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   answerQuestion: async (answer: string) => {
-    const { currentQuestion, currentLevel } = get();
+    const { currentQuestion, currentLevel, score } = get();
     if (!currentQuestion) return false;
-
+  
     try {
       const isCorrect = await gameApi.submitAnswer(currentQuestion.id, answer);
+  
       if (isCorrect) {
+        // calculate score boost
         const difficultyLevel = getDifficultyLevel(currentQuestion.difficulty);
         const multiplier = SCORE_MULTIPLIERS[difficultyLevel];
-        const newScore = get().score + 10 * multiplier;
-
+        const newScore = score + 10 * multiplier;
+  
         set((state) => ({
           score: newScore,
           highScore: Math.max(newScore, state.highScore),
         }));
-
+  
         // fetch next question
         await get().fetchQuestion(currentLevel + 1);
       } else {
-        set({ isGameOver: true });
+        // wrong answer → subtract points
+        const newScore = score - 5; // penalty amount
+        if (newScore <= 0) {
+          set({ score: 0, isGameOver: true });
+        } else {
+          set({ score: newScore });
+          // still move to next question if game not over
+          await get().fetchQuestion(currentLevel + 1);
+        }
       }
+  
       return isCorrect;
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
         error?.message ||
-        'Failed to submit answer';
+        "Failed to submit answer";
       set({ error: message });
       return false;
     }
   },
+  
 
   updateScore: (points: number) => {
     const { score, currentLevel } = get();
